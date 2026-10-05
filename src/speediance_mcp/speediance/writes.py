@@ -5,8 +5,9 @@ Write-fault rules: totalCapacity is never null; every movement is sent with temp
 the server reads a -1 movement's weights and capacity as pounds, so wire_body sends them x2.2, and
 totalCapacity x2.2 always; unilateral movements auto-alternate sides; counterweight2 is empty on a
 movement we build, but an update carries a stored one (and its positive preset) through on every
-movement whose prescription it leaves unchanged (carry_unmodelled); a kg account's loads are whole
-kg up to 100 (validate_sets with unit="kg"); every write is verified by reading the template back.
+movement whose prescription it leaves unchanged (carry_unmodelled); a kg account's loads are 0.5 kg
+steps below 10 kg and whole kg from 10 up to 100 (validate_sets with unit="kg"); every write is
+verified by reading the template back.
 """
 
 from __future__ import annotations
@@ -15,10 +16,12 @@ import math
 
 KG_LB_SCALE = 2.2
 MAX_WEIGHT = 1000.0
-# A template on a kg account holds whole kg only, up to the machine's 100 kg. Verified live
-# 2026-09-30: 22.5, 20.5 and 12.5 were stored as 22, 20 and 12. 9.5 was stored as "9.50", but the
-# machine showed 9 for it, so half-kg loads under 10 kg don't survive a template either.
+# A kg template load moves in 0.5 kg steps below 10 kg and whole kg from 10 kg, up to the machine's
+# 100 kg. Verified live 2026-10-05: 7.5, 8.5 and 9.5 were stored as 7.50, 8.50 and 9.50, while 12.5,
+# 20.5, 22.5, 30.5 and 54.5 were cut to whole kg. App-authored templates hold the same half kilos,
+# and the machine runs them: an 8.50 template ran 8.5 on every set across four sessions.
 MAX_KG = 100
+HALF_KG_BELOW = 10
 # templatePresetId for every written movement. -1 is the app's "Customize" mode (confirmed on the
 # machine, 2026-09-30): the machine runs the stored per-set weights. A positive id is one of the
 # app's presets, where the load comes from the preset and the user's 1RM instead; the machine
@@ -128,15 +131,21 @@ def mode_name(code) -> str | int:
 
 
 def _kg_load(weight: float, number: int) -> None:
-    """A kg template load is whole kg, up to MAX_KG. Refused up front with the nearest loads, rather
-    than letting Speediance cut it and the read-back fail."""
+    """A kg template load is a 0.5 kg step below HALF_KG_BELOW and whole kg from it, up to MAX_KG.
+    Refused up front with the nearest loads, rather than letting Speediance cut it and the read-back
+    fail."""
     if weight > MAX_KG:
         raise ValueError(f"set {number}: the machine's maximum is {MAX_KG} kg")
-    if weight != int(weight):
+    if weight < HALF_KG_BELOW:
+        if weight * 2 != int(weight * 2):
+            low = int(weight * 2) / 2
+            raise ValueError(f"set {number}: {weight:g} kg can't be saved in a template — below "
+                             f"{HALF_KG_BELOW} kg loads go in 0.5 kg steps, so use {low:g} or {low + 0.5:g}")
+    elif weight != int(weight):
         low, high = int(weight), int(weight) + 1
-        raise ValueError(f"set {number}: {weight:g} kg can't be saved in a template — templates hold whole kg "
-                         f"only (Speediance cuts {weight:g} to {low}), so use {low} or {high}, and the user can "
-                         "fine-tune the load on the machine")
+        raise ValueError(f"set {number}: {weight:g} kg can't be saved in a template — from {HALF_KG_BELOW} kg "
+                         f"templates hold whole kg only (Speediance cuts {weight:g} to {low}), so use {low} or "
+                         f"{high}, and the user can fine-tune the load on the machine")
 
 
 def validate_sets(kind: str, sets, default_rest: int = 60, *, unit: str | None = None) -> list[dict]:
