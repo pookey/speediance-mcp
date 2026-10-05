@@ -386,10 +386,20 @@ class TestSetModesAndKgWrites(unittest.TestCase):
         self.assertEqual([(s["weight"], s["mode"]) for s in read["sets"]],
                          [(20.0, "standard"), (22.0, "chain"), (7.0, "eccentric")])
 
-    def test_kg_half_kilo_is_refused_before_any_write(self):
+    def test_kg_half_kilo_below_10_is_saved(self):
+        store = TemplateStore(kg_server=True)
+        app, _ = make_app(self, store.routes(), creds=KG_CREDS)
+        sets = [{"reps": 12, "weight": w} for w in (8.5, 7.5, 9.5, 0.5)]
+        got = workouts.create_workout(app, "Raise", [{"name": "bent over row", "sets": sets}])
+        self.assertTrue(got["verified"], got.get("mismatches"))
+        read = workouts.get_workout(app, got["code"])["exercises"][0]
+        self.assertEqual([s["weight"] for s in read["sets"]], [8.5, 7.5, 9.5, 0.5])
+
+    def test_kg_off_grid_load_is_refused_before_any_write(self):
         store = TemplateStore(kg_server=True)
         app, fake = make_app(self, store.routes(), creds=KG_CREDS)
-        for weight, expected in ((22.5, "use 22 or 23"), (9.5, "use 9 or 10"), (101, "maximum is 100")):
+        for weight, expected in ((22.5, "use 22 or 23"), (10.5, "use 10 or 11"), (9.3, "use 9 or 9.5"),
+                                 (101, "maximum is 100")):
             with self.subTest(weight=weight), self.assertRaises(ToolError) as caught:
                 workouts.create_workout(app, "Modes", [{"name": "bent over row",
                                                         "sets": [{"reps": 8, "weight": weight}]}])

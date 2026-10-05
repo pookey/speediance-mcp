@@ -359,9 +359,10 @@ Encoded in `speediance.writes`:
      Live-verified (35 saved → 35 lb shown).
    - **kg accounts:** the server reads a -1 movement's `weights`/`capacity` as pounds, so they go
      out × 2.2, and `totalCapacity` × 2.2 whatever the preset. Verified live 2026-09-30: 20 kg sent
-     as 44.00 stored 20, and the machine showed 20 kg in Customize mode. Loads must be whole kg
-     up to 100: 22.5/20.5/12.5 stored as 22/20/12, and 9.5 stored as 9.50 but showed as 9 on
-     the machine, so `create_workout`/`update_workout` refuse half kilos up front.
+     as 44.00 stored 20, and the machine showed 20 kg in Customize mode. Loads go in 0.5 kg steps
+     below 10 kg and whole kg from 10 up to 100: live 2026-10-05, 7.5/8.5/9.5 stored as
+     7.50/8.50/9.50 while 12.5/20.5/22.5/30.5/54.5 were cut to whole kg, and an 8.50 template ran
+     8.5 on the machine. `create_workout`/`update_workout` refuse anything off that grid up front.
 3. *(merged into rule 2)*
 4. A unilateral movement (`isLeftRight`) with no explicit sides gets sides auto-alternated
    `1,2,1,2,…`. All-`0` sides → HTTP 500.

@@ -188,8 +188,9 @@ def create_workout(app, name: str, exercises: list[dict]) -> dict:
     "mode" "standard" (default) / "chain" / "eccentric". The chain or eccentric overload amount can't
     be set through the API or stored in the template — tell the user to dial it in on the machine.
     Weights are in displayUnit, and the template is saved in the app's "Customize" mode, so the
-    machine runs exactly these weights and modes. On a kg account a load must be whole kg, up to
-    100: templates can't hold half kilos, so round and tell the user they can fine-tune on the machine. The template is read back after saving; verified:false means Speediance
+    machine runs exactly these weights and modes. On a kg account a load is a 0.5 kg step below 10 kg
+    and whole kg from 10 kg up to 100: above 10 kg templates can't hold half kilos, so round and tell
+    the user they can fine-tune on the machine. The template is read back after saving; verified:false means Speediance
     stored something different — tell the user. Never program a ⊘avoided movement unless asked by name.
     The reply carries the user's hardConstraints and legacyUnreviewed facts when there are any.
     Re-check these against the workout before telling the user it's done."""
