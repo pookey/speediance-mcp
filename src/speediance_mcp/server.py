@@ -73,6 +73,11 @@ above 1.3, a short or poor night, or HRV below the user's own baseline all argue
 fatigued muscle shouldn't be loaded hard. Judge wellness values against the user's OWN band, never population
 norms. `feeds` says what answered — "error" means that data is unknown, never normal.
 
+PERSONAL BESTS — get_session_detail flags each exercise Speediance itself marked as a PB (weight, volume,
+1RM) and summarises them per session. They were true when the session was saved, not necessarily now. Only
+custom-template sessions carry them; empty means no flag, not no PB. Chain-mode sets can inflate the weight
+and volume flags. Say where a PB claim comes from: Speediance's flag, not one we computed.
+
 UNITS — every weight is already in the account's displayUnit. Never convert.
 """
 

@@ -55,6 +55,12 @@ def get_calendar(app, month: str) -> dict:
     return {"month": month, "displayUnit": app.api.unit, "days": [by_date[k] for k in sorted(by_date) if k]}
 
 
+def personal_best_summary(exercises: list[dict]) -> list[dict]:
+    """[{exercise, kinds}] for the exercises Speediance flagged; empty when none."""
+    return [{"exercise": ex["name"], "kinds": ex["personalBests"]}
+            for ex in exercises if ex.get("personalBests")]
+
+
 def _heart_rate_present(exercises: list[dict]) -> bool:
     return any(entry.get("maxHeartRate") for ex in exercises for entry in ex["setLog"])
 
@@ -72,7 +78,16 @@ def get_session_detail(app, training_id: int, type: int = 0) -> dict:
     the load that was set, and an eccentric set shows only the concentric load. The only record of
     which sets were chain or eccentric is the source template, which Speediance rewrites after each
     session; when that record still belongs to this session, each exercise carries `modeHint` per
-    set. Without modeHint the modes are unknown — don't assume standard for a surprising weight."""
+    set. Without modeHint the modes are unknown — don't assume standard for a surprising weight.
+
+    Each exercise carries personalBests — a subset of ["weight", "volume", "1RM"] — and the reply has a
+    session-level personalBests summary [{exercise, kinds}]. These are Speediance's OWN flags, set when
+    the session was saved: heaviest weight, most volume or best estimated 1RM for that movement at that
+    time. They do not mean it is still the all-time best, and they are not ours (get_strength_profile
+    computes its own estimates). Only custom-template sessions carry them; Free Lift and off-machine
+    exercises always show none, which means "no flag available", not "no PB". Speediance's figures are
+    measured force and the session carries no set-mode field, so a chain-mode set logs a higher weight
+    than its setting and can set a weight or volume PB: treat those two with care on chain work."""
     try:
         record = app.api.find_session(training_id)
     except SessionNotFound:
@@ -89,7 +104,7 @@ def get_session_detail(app, training_id: int, type: int = 0) -> dict:
         out = {"trainingId": int(record["trainingId"]), "title": record.get("title"),
                "date": date, "detailType": "manual",
                "resolvedType": True, "sessionType": MANUAL_TYPE, "displayUnit": app.api.unit,
-               "exercises": exercises, "warnings": [],
+               "exercises": exercises, "warnings": [], "personalBests": [],
                "durationSec": int(record.get("trainingTime") or 0),
                "calories": record.get("calorie"),
                "exerciseSource": "offmachine" if exercises else "none"}
@@ -112,6 +127,7 @@ def get_session_detail(app, training_id: int, type: int = 0) -> dict:
            "date": str(record.get("startTime", ""))[:10], "detailType": route, "resolvedType": True,
            "sessionType": record.get("type"), "displayUnit": app.api.unit,
            "exercises": parsed["exercises"], "warnings": parsed["warnings"],
+           "personalBests": personal_best_summary(parsed["exercises"]),
            "heartRateAvailable": bool(find_uuid(route, payload)) and _heart_rate_present(parsed["exercises"])}
     if _add_mode_hints(app, record, out["exercises"]):
         out["modeHintNote"] = MODE_HINT_NOTE
